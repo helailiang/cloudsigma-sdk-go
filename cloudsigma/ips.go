@@ -23,6 +23,7 @@ type IP struct {
 	Owner       *ResourceLink          `json:"owner,omitempty"`
 	ResourceURI string                 `json:"resource_uri,omitempty"`
 	Server      *ResourceLink          `json:"server,omitempty"`
+	Subscription *Subscription			`json:"subscription,omitempty"`
 	UUID        string                 `json:"uuid,omitempty"`
 }
 
@@ -39,7 +40,8 @@ func (i IP) String() string {
 //
 // CloudSigma API docs: https://cloudsigma-docs.readthedocs.io/en/latest/networking.html#id2
 func (s *IPsService) List(ctx context.Context) ([]IP, *Response, error) {
-	path := fmt.Sprintf("%v/detail/", ipsBasePath)
+	//path := fmt.Sprintf("%v/detail/", ipsBasePath)
+	path := fmt.Sprintf("%v/detail/?limit=0&offset=0", ipsBasePath) //2022-09-15 查询所有ip
 
 	req, err := s.client.NewRequest(http.MethodGet, path, nil)
 	if err != nil {

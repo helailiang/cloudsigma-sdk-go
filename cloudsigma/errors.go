@@ -5,6 +5,17 @@ import (
 	"fmt"
 )
 
+const (
+	ErrorType_validation  = "validation"
+	ErrorType_notexist   = "notexist"
+	ErrorType_backend     = "backend"
+	ErrorType_permission  = "permission"
+	ErrorType_database    = "database"
+	ErrorType_concurrency = "concurrency"
+	ErrorType_billing     = "billing"
+	ErrorType_payment     = "payment"
+)
+
 // Errors used by the CloudSigma SDK.
 var (
 	// ErrEmptyPayloadNotAllowed is returned when a request body is empty
@@ -13,6 +24,8 @@ var (
 
 	// ErrEmptyArgument is returned when a mandatory function argument is empty.
 	ErrEmptyArgument = errors.New("cloudsigma: argument cannot be empty")
+
+	ErrServerNoExist = errors.New("server dont exist")
 )
 
 // An ErrorResponse reports one or more errors caused by an API request.

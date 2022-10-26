@@ -20,7 +20,7 @@ type Subscription struct {
 	AutoRenew        bool   `json:"auto_renew,omitempty"`
 	EndTime          string `json:"end_time,omitempty"`
 	FreeTier         bool   `json:"free_tier,omitempty"`
-	ID               string `json:"id,omitempty"`
+	ID               int64 `json:"id,omitempty"`
 	Period           string `json:"period,omitempty"`
 	Price            string `json:"price,omitempty"`
 	Remaining        string `json:"remaining,omitempty"`

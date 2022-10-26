@@ -8,6 +8,20 @@ import (
 
 const serversBasePath = "servers"
 
+//server status
+const (
+	ServerStop ServerStatus = "stopped"
+	ServerRunning ServerStatus = "running"
+)
+
+//IP Type
+const (
+	IPTypeStatic = "static"
+	IPTypeDHCP  = "dhcp"
+	IPTypeManual = "manual"
+)
+
+type ServerStatus string
 // ServersService handles communication with the servers related methods of
 // the CloudSigma API.
 //
@@ -16,9 +30,11 @@ type ServersService service
 
 // Server represents a CloudSigma server.
 type Server struct {
+	//AllocationPool     string `json:"allocation_pool"`
 	AutoStart          bool                   `json:"auto_start,omitempty"`
 	Context            bool                   `json:"context,omitempty"`
 	CPU                int                    `json:"cpu,omitempty"`
+	//CPUModel           string		`json:"cpu_model"`
 	CPUType            string                 `json:"cpu_type,omitempty"`
 	CPUsInsteadOfCores bool                   `json:"cpus_instead_of_cores,omitempty"`
 	Drives             []ServerDrive          `json:"drives,omitempty"`
@@ -28,7 +44,7 @@ type Server struct {
 	Memory             int                    `json:"mem,omitempty"`
 	Meta               map[string]interface{} `json:"meta,omitempty"`
 	Name               string                 `json:"name,omitempty"`
-	NICs               []ServerNIC            `json:"nics,omitempty"`
+	NICs               []ServerNIC            `json:"nics"`
 	Owner              *ResourceLink          `json:"owner,omitempty"`
 	PublicKeys         []Keypair              `json:"pubkeys,omitempty"`
 	ResourceURI        string                 `json:"resource_uri,omitempty"`
@@ -93,6 +109,8 @@ type ServerAction struct {
 	Action string `json:"action,omitempty"`
 	Result string `json:"result,omitempty"`
 	UUID   string `json:"uuid,omitempty"`
+	Job    string `json:"job,omitempty"`
+	Tags   []string `json:"tags,omitempty"`
 }
 
 // ServerCreateRequest represents a request to create a server.
@@ -100,15 +118,56 @@ type ServerCreateRequest struct {
 	Servers []Server `json:"objects"`
 }
 
+type ServerDetails struct {
+	Servers []Server `json:"objects"`
+}
+
 // ServerUpdateRequest represents a request to update a server.
-type ServerUpdateRequest struct {
+type  ServerUpdateRequest struct {
 	*Server
+}
+
+type serversRootSimple struct {
+	Servers []ServerSimple `json:"objects"`
+}
+
+type ServerSimple struct {
+	//AllocationPool     string `json:"allocation_pool"`
+	AutoStart          bool                   `json:"auto_start,omitempty"`
+	Context            bool                   `json:"context,omitempty"`
+	CPU                int                    `json:"cpu,omitempty"`
+	//CPUModel           string		`json:"cpu_model"`
+	CPUType            string                 `json:"cpu_type,omitempty"`
+	CPUsInsteadOfCores bool                   `json:"cpus_instead_of_cores,omitempty"`
+	Drives             []ServerDrive          `json:"drives,omitempty"`
+	EnableNuma         bool                   `json:"enable_numa,omitempty"`
+	EnclavePageCaches  []EnclavePageCache     `json:"epcs,omitempty"`
+	Memory             int                    `json:"mem,omitempty"`
+	Name               string                 `json:"name,omitempty"`
+	NICs               []ServerNIC            `json:"nics,omitempty"`
+	ResourceURI        string                 `json:"resource_uri,omitempty"`
+	SMP                int                    `json:"smp,omitempty"`
+	Status             string                 `json:"status,omitempty"`
+	UUID               string                 `json:"uuid,omitempty"`
+	VNCPassword        string                 `json:"vnc_password,omitempty"`
 }
 
 type serversRoot struct {
 	Meta    *Meta    `json:"meta,omitempty"`
 	Servers []Server `json:"objects"`
 }
+
+type ServerCloneAndStartRequest struct {
+	Name string `json:"name,omitempty"`
+	AutoStart bool `json:"auto_start,omitempty"`
+	Count uint `json:"count"`
+}
+
+type ServerCloneRequest struct {
+	Name string `json:"name,omitempty"`
+	RandomVncPassword bool `json:"random_vnc_password,omitempty"`
+}
+
 
 // List provides a detailed list of servers to which the authenticated user
 // has access.
@@ -157,7 +216,26 @@ func (s *ServersService) Get(ctx context.Context, uuid string) (*Server, *Respon
 
 	return server, resp, nil
 }
+func (s *ServersService) GetDetail(ctx context.Context) (*serversRootSimple, *Response, error) {
+	//if uuid == "" {
+	//	return nil, nil, ErrEmptyArgument
+	//}
 
+	path := fmt.Sprintf("%v/detail/?limit=0&order_by=uuid", serversBasePath)
+
+	req, err := s.client.NewRequest(http.MethodGet, path, nil)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	servers := new(serversRootSimple)
+	resp, err := s.client.Do(ctx, req, servers)
+	if err != nil {
+		return nil, resp, err
+	}
+
+	return servers, resp, nil
+}
 // Create makes a new virtual server with given payload.
 //
 // CloudSigma API docs: https://cloudsigma-docs.readthedocs.io/en/latest/servers.html#creating
@@ -237,31 +315,31 @@ func (s *ServersService) Delete(ctx context.Context, uuid string) (*Response, er
 //
 // CloudSigma API docs: https://cloudsigma-docs.readthedocs.io/en/latest/servers.html#start
 func (s *ServersService) Start(ctx context.Context, uuid string) (*ServerAction, *Response, error) {
-	return s.doAction(ctx, uuid, "start")
+	return s.doAction(ctx, uuid, "start", nil)
 }
 
 // Stop sends 'stop' action and stops a server with specific uuid.
 //
 // CloudSigma API docs: https://cloudsigma-docs.readthedocs.io/en/latest/servers.html#stop
 func (s *ServersService) Stop(ctx context.Context, uuid string) (*ServerAction, *Response, error) {
-	return s.doAction(ctx, uuid, "stop")
+	return s.doAction(ctx, uuid, "stop",nil)
 }
 
 // Shutdown sends an ACPI shutdowns to a server with specific UUID for a minute.
 //
 // CloudSigma API docs: https://cloudsigma-docs.readthedocs.io/en/latest/servers.html#acpi-shutdown
 func (s *ServersService) Shutdown(ctx context.Context, uuid string) (*ServerAction, *Response, error) {
-	return s.doAction(ctx, uuid, "shutdown")
+	return s.doAction(ctx, uuid, "shutdown", nil)
 }
 
-func (s *ServersService) doAction(ctx context.Context, uuid, action string) (*ServerAction, *Response, error) {
+func (s *ServersService) doAction(ctx context.Context, uuid, action string, body interface{}) (*ServerAction, *Response, error) {
 	if uuid == "" || action == "" {
 		return nil, nil, ErrEmptyArgument
 	}
 
 	path := fmt.Sprintf("%v/%v/action/?do=%v", serversBasePath, uuid, action)
 
-	req, err := s.client.NewRequest(http.MethodPost, path, nil)
+	req, err := s.client.NewRequest(http.MethodPost, path, body)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -274,3 +352,34 @@ func (s *ServersService) doAction(ctx context.Context, uuid, action string) (*Se
 
 	return serverAction, resp, nil
 }
+
+func (s *ServersService) Clone(ctx context.Context, uuid string, request ServerCloneRequest) (*Server, *Response, error) {
+	if uuid == "" {
+		return nil, nil, ErrEmptyArgument
+	}
+
+	path := fmt.Sprintf("%v/%v/action/?do=clone", serversBasePath, uuid)
+
+	req, err := s.client.NewRequest(http.MethodPost, path, request)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	serverAction := new(Server)
+	resp, err := s.client.Do(ctx, req, serverAction)
+	if err != nil {
+		return nil, resp, err
+	}
+
+	return serverAction, resp, nil
+	//return s.doAction(ctx, uuid, "clone", request)
+}
+
+
+func (s *ServersService) CloneAndStart(ctx context.Context, uuid string, request ServerCloneAndStartRequest) (*ServerAction, *Response, error) {
+	return s.doAction(ctx, uuid, "bulk_clone_start", request)
+}
+
+//func (s *ServersService) Stop(ctx context.Context, uuid string) (*ServerAction, *Response, error) {
+//	return s.doAction(ctx, uuid, "stop", nil)
+//}

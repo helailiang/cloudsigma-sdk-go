@@ -227,7 +227,8 @@ func (c *Client) NewRequest(method, urlStr string, body interface{}) (*http.Requ
 	if err != nil {
 		return nil, err
 	}
-
+	reqJson, _ := json.Marshal(body)
+	fmt.Printf("method:%s, urlStr:%s ; req: %s \n", method, u.String() , reqJson)
 	buf := new(bytes.Buffer)
 	if body != nil {
 		err = json.NewEncoder(buf).Encode(body)
@@ -258,6 +259,7 @@ func (c *Client) NewRequest(method, urlStr string, body interface{}) (*http.Requ
 // the value pointed to by v, or returned as an error if an API error has occurred.
 func (c *Client) Do(ctx context.Context, req *http.Request, v interface{}) (*Response, error) {
 	req = req.WithContext(ctx)
+
 	resp, err := c.client.Do(req)
 	if err != nil {
 		// if we got an error, and the context has been canceled, the context's error is more useful.
